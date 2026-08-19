@@ -1,0 +1,360 @@
+---
+import { getCollection } from "astro:content";
+import { getImage } from "astro:assets";
+import Layout from "../layouts/Layout.astro";
+import { getGalleries } from "../lib/gallery";
+
+const galleries = getGalleries();
+
+const galleryCards = await Promise.all(
+	galleries.map(async (gallery) => ({
+		name: gallery.name,
+		preview:
+			gallery.images.length > 0
+				? await getImage({
+						src: gallery.images[0].src,
+						width: 1000,
+						format: "webp",
+						quality: 80
+					})
+				: null
+	}))
+);
+
+const posts = (await getCollection("blog")).sort(
+	(a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+
+const latestPost = posts[0];
+---
+
+<Layout title="MMKF-RS">
+
+	<section class="section">
+
+		<div class="section-header">
+			<h2>GALERIEN</h2>
+
+			<a href="/galerien">
+				ALLE ANSEHEN →
+			</a>
+		</div>
+
+
+		<div class="gallery-grid">
+
+			{galleryCards.map((gallery) => (
+
+				<a
+					href={`/galerien/${encodeURIComponent(gallery.name)}`}
+					class="gallery-card"
+				>
+
+					{gallery.preview && (
+						<div class="gallery-preview">
+
+							<img
+								src={gallery.preview.src}
+								width={gallery.preview.width}
+								height={gallery.preview.height}
+								alt={gallery.name}
+								loading="lazy"
+							/>
+
+						</div>
+					)}
+
+					<div class="gallery-title">
+
+						<span>{gallery.name}</span>
+
+						<span>→</span>
+
+					</div>
+
+				</a>
+
+			))}
+
+		</div>
+
+	</section>
+
+
+	<section class="section blog">
+
+		<div class="section-header">
+
+			<h2>BLOG</h2>
+
+			<a href="/blog">
+				ALLE BEITRÄGE →
+			</a>
+
+		</div>
+
+
+		{latestPost && (
+
+			<a
+				href={`/blog/${latestPost.id}`}
+				class="latest-post"
+			>
+
+				<p class="date">
+					{latestPost.data.date.toLocaleDateString("de-AT", {
+						month: "long",
+						year: "numeric"
+					}).toUpperCase()}
+				</p>
+
+				<h3>
+					{latestPost.data.title}
+				</h3>
+
+				{latestPost.data.description && (
+					<p class="description">
+						{latestPost.data.description}
+					</p>
+				)}
+
+				<span class="post-arrow">
+					BEITRAG ANSEHEN →
+				</span>
+
+			</a>
+
+		)}
+
+	</section>
+
+</Layout>
+
+
+<style>
+
+	/* SECTIONS */
+
+	.section {
+		padding: 80px 40px 20px;
+	}
+
+
+	.section-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+
+		margin-bottom: 30px;
+		padding-bottom: 15px;
+
+		border-bottom:
+			1px solid
+			rgba(255, 255, 255, 0.35);
+	}
+
+
+	h2 {
+		margin: 0;
+
+		font-size: 1rem;
+		font-weight: 400;
+
+		letter-spacing: 0.1em;
+	}
+
+
+	a {
+		color: #fff;
+		text-decoration: none;
+
+		font-size: 0.7rem;
+		letter-spacing: 0.08em;
+	}
+
+
+	a:hover {
+		text-decoration: underline;
+	}
+
+
+	/* GALERIEN */
+
+	.gallery-grid {
+		display: grid;
+
+		grid-template-columns:
+			repeat(
+				auto-fit,
+				minmax(180px, 1fr)
+			);
+
+		gap: 12px;
+
+		max-width: 1200px;
+	}
+
+
+	.gallery-card {
+		display: block;
+
+		color: #fff;
+
+		background:
+			rgba(10, 10, 10, 0.72);
+
+		text-decoration: none;
+
+		overflow: hidden;
+
+		backdrop-filter: blur(2px);
+	}
+
+
+	.gallery-preview {
+		width: 100%;
+
+		aspect-ratio: 3 / 2;
+
+		overflow: hidden;
+	}
+
+
+	.gallery-preview img {
+		display: block;
+
+		width: 100%;
+		height: 100%;
+
+		object-fit: cover;
+
+		transition:
+			transform 0.3s ease,
+			opacity 0.3s ease;
+	}
+
+
+	.gallery-card:hover .gallery-preview img {
+		transform: scale(1.03);
+		opacity: 0.9;
+	}
+
+
+	.gallery-title {
+		display: flex;
+
+		justify-content: space-between;
+		align-items: center;
+
+		padding: 14px 12px;
+
+		border-top:
+			1px solid
+			rgba(255, 255, 255, 0.2);
+
+		font-size: 0.75rem;
+
+		letter-spacing: 0.08em;
+	}
+
+
+	.gallery-title span:last-child {
+		font-size: 1rem;
+	}
+
+
+	/* BLOG */
+
+	.blog {
+		padding-bottom: 100px;
+	}
+
+
+	.latest-post {
+		display: block;
+
+		max-width: 700px;
+
+		padding: 25px;
+
+		color: #fff;
+
+		background:
+			rgba(10, 10, 10, 0.72);
+
+		backdrop-filter: blur(2px);
+
+		text-decoration: none;
+
+		transition:
+			background 0.2s ease,
+			transform 0.2s ease;
+	}
+
+
+	.latest-post:hover {
+		background:
+			rgba(10, 10, 10, 0.85);
+
+		transform: translateY(-2px);
+	}
+
+
+	.date {
+		margin: 0 0 12px;
+
+		color: #aaa;
+
+		font-size: 0.7rem;
+
+		letter-spacing: 0.08em;
+	}
+
+
+	h3 {
+		margin: 0 0 20px;
+
+		font-size:
+			clamp(1.5rem, 3vw, 2.5rem);
+
+		font-weight: 400;
+	}
+
+
+	.description {
+		margin: 0 0 25px;
+
+		color: #ccc;
+
+		line-height: 1.7;
+	}
+
+
+	.post-arrow {
+		font-size: 0.7rem;
+
+		letter-spacing: 0.08em;
+	}
+
+
+	/* MOBILE */
+
+	@media (max-width: 700px) {
+
+		.section {
+			padding-left: 20px;
+			padding-right: 20px;
+		}
+
+
+		.gallery-grid {
+			grid-template-columns:
+				repeat(
+					auto-fit,
+					minmax(150px, 1fr)
+				);
+		}
+
+	}
+
+</style>

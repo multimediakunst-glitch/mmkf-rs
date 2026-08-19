@@ -1,0 +1,361 @@
+---
+import backgroundImage from "../assets/Back202608.jpg";
+
+interface Props {
+	title?: string;
+}
+
+const { title = "MMKF-RS" } = Astro.props;
+---
+
+<!doctype html>
+<html lang="de">
+
+	<head>
+
+		<meta charset="utf-8" />
+
+		<meta
+			name="viewport"
+			content="width=device-width"
+		/>
+
+		<link
+			rel="icon"
+			type="image/svg+xml"
+			href="/favicon.svg"
+		/>
+
+		<link
+			rel="icon"
+			href="/favicon.ico"
+		/>
+
+		<meta
+			name="generator"
+			content={Astro.generator}
+		/>
+
+		<title>{title}</title>
+
+	</head>
+
+
+	<body>
+
+		<!-- HINTERGRUNDBILD -->
+
+		<div
+			class="site-background"
+			style={`background-image: url("${backgroundImage.src}")`}
+		></div>
+
+
+		<!-- ABDUNKLUNG -->
+
+		<div class="site-overlay"></div>
+
+
+		<!-- HEADER -->
+
+		<header class="site-header">
+
+			<a
+				href="/"
+				class="logo"
+			>
+				MMKF-RS
+			</a>
+
+
+			<nav>
+
+				<a href="/">
+					HOME
+				</a>
+
+				<a href="/galerien">
+					GALERIEN
+				</a>
+
+				<a href="/blog">
+					BLOG
+				</a>
+
+				<a href="/ueber-mich">
+					ÜBER MICH
+				</a>
+
+			</nav>
+
+		</header>
+
+
+		<!-- INHALT -->
+
+		<main class="site-main">
+
+			<slot />
+
+		</main>
+
+
+		<!-- FOOTER -->
+
+		<footer class="site-footer">
+
+			<div>
+				MMKF-RS
+			</div>
+
+
+			<nav>
+
+				<a href="/impressum">
+					IMPRESSUM
+				</a>
+
+				<a href="/datenschutz">
+					DATENSCHUTZ
+				</a>
+
+			</nav>
+
+
+			<div>
+				© 2026
+			</div>
+
+		</footer>
+
+	</body>
+
+</html>
+
+
+<style>
+
+	/* ========================================
+	   GRUNDLAYOUT
+	   ======================================== */
+
+	html,
+	body {
+		margin: 0;
+		width: 100%;
+		min-height: 100%;
+
+		background: transparent;
+	}
+
+
+	body {
+		position: relative;
+
+		color: #fff;
+
+		font-family:
+			"IBM Plex Mono",
+			monospace;
+	}
+
+
+	/* ========================================
+	   HINTERGRUNDBILD
+	   ======================================== */
+
+	.site-background {
+
+		position: fixed;
+
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+
+		width: 100%;
+		height: 100%;
+
+		z-index: 0;
+
+		background-repeat: no-repeat;
+
+		background-position: center center;
+
+		background-size: cover;
+	}
+
+
+	/* ========================================
+	   SCHWARZES OVERLAY
+	   ======================================== */
+
+	.site-overlay {
+
+		position: fixed;
+
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+
+		width: 100%;
+		height: 100%;
+
+		z-index: 1;
+
+		background: rgba(0, 0, 0, 0.48);
+
+		pointer-events: none;
+	}
+
+
+	/* ========================================
+	   HEADER
+	   ======================================== */
+
+	.site-header {
+
+		position: relative;
+
+		z-index: 10;
+
+		display: flex;
+
+		justify-content: space-between;
+
+		align-items: center;
+
+		padding: 25px 40px;
+
+		border-bottom:
+			1px solid
+			rgba(255, 255, 255, 0.25);
+	}
+
+
+	.logo {
+
+		color: #fff;
+
+		font-size: 1rem;
+
+		letter-spacing: 0.12em;
+
+		text-decoration: none;
+	}
+
+
+	.site-header nav {
+
+		display: flex;
+
+		gap: 30px;
+	}
+
+
+	.site-header nav a,
+	.site-footer a {
+
+		color: #fff;
+
+		font-size: 0.7rem;
+
+		letter-spacing: 0.08em;
+
+		text-decoration: none;
+	}
+
+
+	.site-header nav a:hover,
+	.site-footer a:hover {
+
+		text-decoration: underline;
+	}
+
+
+	/* ========================================
+	   HAUPTINHALT
+	   ======================================== */
+
+	.site-main {
+
+		position: relative;
+
+		z-index: 5;
+
+		min-height:
+			calc(100vh - 150px);
+	}
+
+
+	/* ========================================
+	   FOOTER
+	   ======================================== */
+
+	.site-footer {
+
+		position: relative;
+
+		z-index: 10;
+
+		display: flex;
+
+		justify-content: space-between;
+
+		align-items: center;
+
+		padding: 25px 40px;
+
+		border-top:
+			1px solid
+			rgba(255, 255, 255, 0.25);
+
+		font-size: 0.7rem;
+	}
+
+
+	.site-footer nav {
+
+		display: flex;
+
+		gap: 25px;
+	}
+
+
+	/* ========================================
+	   MOBIL
+	   ======================================== */
+
+	@media (max-width: 700px) {
+
+		.site-header {
+
+			padding: 20px;
+		}
+
+
+		.site-header nav {
+
+			gap: 15px;
+		}
+
+
+		.site-header nav a {
+
+			font-size: 0.6rem;
+		}
+
+
+		.site-footer {
+
+			padding: 20px;
+
+			flex-direction: column;
+
+			gap: 15px;
+		}
+
+	}
+
+</style>

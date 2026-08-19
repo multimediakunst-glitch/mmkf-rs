@@ -1,0 +1,192 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Impressum – MMKF-RS">
+
+	<section class="legal-page">
+
+		<header class="page-header">
+
+			<a href="/" class="back">
+				← MMKF-RS
+			</a>
+
+			<h1>IMPRESSUM</h1>
+
+		</header>
+
+
+		<div class="legal-content">
+
+			<h2>MEDIENINHABER</h2>
+
+			<p>
+				Richard Schmidt<br>
+				Vorgartenstrasse 173/5/7<br>
+				1020 Wien<br>
+				Österreich
+			</p>
+
+
+			<h2>KONTAKT</h2>
+
+			<p>
+				E-Mail:
+				<a href="mailto:multimediakunst@gmail.com">
+					multimediakunst@gmail.com
+				</a>
+				<br>
+				Telefon: 0676 9249642
+			</p>
+
+
+			<h2>INHALT</h2>
+
+			<p>
+				MMKF-RS ist eine private, nicht kommerzielle
+				Website von Richard Schmidt.
+			</p>
+
+			<p>
+				Es besteht keine Gewinnerzielungsabsicht.
+				Die Website dient ausschließlich privaten
+				Zwecken sowie der Veröffentlichung eigener
+				Fotos, Projekte, Notizen und sonstiger Inhalte.
+			</p>
+
+
+			<h2>HINWEIS</h2>
+
+			<p>
+				Alle Inhalte dieser Website wurden, soweit nicht
+				anders angegeben, von mir selbst erstellt.
+			</p>
+
+			<p>
+				Für die Inhalte externer Websites, auf die von
+				MMKF-RS verlinkt wird, bin ich nicht verantwortlich.
+			</p>
+
+		</div>
+
+	</section>
+
+</Layout>
+
+
+<style>
+
+	.legal-page {
+		max-width: 900px;
+
+		margin: 0 auto;
+
+		padding: 70px 40px 120px;
+
+		box-sizing: border-box;
+	}
+
+
+	.page-header {
+		padding-bottom: 30px;
+
+		margin-bottom: 60px;
+
+		border-bottom:
+			1px solid
+			rgba(255, 255, 255, 0.3);
+	}
+
+
+	.back {
+		display: inline-block;
+
+		margin-bottom: 40px;
+
+		color: #aaa;
+
+		font-size: 0.7rem;
+
+		letter-spacing: 0.08em;
+
+		text-decoration: none;
+	}
+
+
+	.back:hover {
+		color: #fff;
+	}
+
+
+	h1 {
+		margin: 0;
+
+		font-size:
+			clamp(2rem, 5vw, 4rem);
+
+		font-weight: 400;
+
+		letter-spacing: 0.04em;
+	}
+
+
+	.legal-content {
+		max-width: 700px;
+
+		color: #ddd;
+
+		font-size: 0.95rem;
+
+		line-height: 1.8;
+	}
+
+
+	h2 {
+		margin:
+			50px 0 15px;
+
+		color: #fff;
+
+		font-size: 0.8rem;
+
+		font-weight: 400;
+
+		letter-spacing: 0.1em;
+	}
+
+
+	h2:first-child {
+		margin-top: 0;
+	}
+
+
+	p {
+		margin:
+			0 0 25px;
+	}
+
+
+	a {
+		color: #fff;
+
+		text-decoration: none;
+	}
+
+
+	a:hover {
+		text-decoration: underline;
+	}
+
+
+	@media (max-width: 700px) {
+
+		.legal-page {
+
+			padding:
+				40px 20px 80px;
+		}
+
+	}
+
+</style>

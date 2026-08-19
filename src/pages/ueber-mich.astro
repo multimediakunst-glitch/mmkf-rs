@@ -1,0 +1,290 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Über mich – MMKF-RS">
+
+	<section class="about-page">
+
+		<header class="page-header">
+
+			<a href="/" class="back">
+				← MMKF-RS
+			</a>
+
+			<h1>ÜBER MICH</h1>
+
+		</header>
+
+
+		<div class="about-content">
+
+			<div class="about-text">
+
+				<p>
+					MMKF-RS ist meine Seite.<br>
+					Oder der Versuch, irgendwas und irgendwie zu machen.
+				</p>
+
+				<p>
+					Fotos, Technik, Projekte und sonstiger Blödsinn.
+				</p>
+
+				<p>
+					<strong>What ever.</strong>
+				</p>
+
+				<p>
+					Ich bin kein Fotograf. Ich fotografiere halt gern.
+				</p>
+
+				<p>
+					Der Rest steht im Blog. Wenn ich was reinschreib.
+				</p>
+
+				<p>
+					Social Media gibt's auch. Die Accounts existieren zumindest.
+					Gepflegt werden sie eher nicht.
+				</p>
+
+				<div class="social-links">
+
+					<a
+						href="https://www.multimediakunstficker.at/"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						BLOGGER →
+					</a>
+
+					<a
+						href="https://www.threads.com/@multimediakunst"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						THREADS →
+					</a>
+
+					<a
+						href="https://www.instagram.com/multimediakunst/"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						INSTAGRAM →
+					</a>
+
+				</div>
+
+			</div>
+
+
+			<div class="about-image">
+
+				<div class="image-placeholder">
+					FOTO
+				</div>
+
+			</div>
+
+		</div>
+
+	</section>
+
+</Layout>
+
+
+<style>
+
+	.about-page {
+		max-width: 1100px;
+
+		margin: 0 auto;
+
+		padding: 70px 40px 120px;
+
+		box-sizing: border-box;
+	}
+
+
+	/* HEADER */
+
+	.page-header {
+		padding-bottom: 30px;
+
+		margin-bottom: 60px;
+
+		border-bottom:
+			1px solid
+			rgba(255, 255, 255, 0.3);
+	}
+
+
+	.back {
+		display: inline-block;
+
+		margin-bottom: 40px;
+
+		color: #aaa;
+
+		font-size: 0.7rem;
+
+		letter-spacing: 0.08em;
+
+		text-decoration: none;
+	}
+
+
+	.back:hover {
+		color: #fff;
+	}
+
+
+	h1 {
+		margin: 0;
+
+		font-size:
+			clamp(2rem, 5vw, 4rem);
+
+		font-weight: 400;
+
+		letter-spacing: 0.04em;
+	}
+
+
+	/* INHALT */
+
+	.about-content {
+
+		display: grid;
+
+		grid-template-columns:
+			minmax(0, 1fr)
+			minmax(280px, 400px);
+
+		gap: 70px;
+
+		align-items: start;
+	}
+
+
+	.about-text {
+
+		max-width: 650px;
+
+		color: #eee;
+
+		font-size: 1rem;
+
+		line-height: 1.8;
+	}
+
+
+	.about-text p {
+
+		margin:
+			0 0 25px;
+	}
+
+
+	/* SOCIAL MEDIA */
+
+	.social-links {
+
+		display: flex;
+
+		flex-direction: column;
+
+		align-items: flex-start;
+
+		gap: 12px;
+
+		margin-top: 40px;
+	}
+
+
+	.social-links a {
+
+		color: #fff;
+
+		font-size: 0.7rem;
+
+		letter-spacing: 0.08em;
+
+		text-decoration: none;
+	}
+
+
+	.social-links a:hover {
+
+		text-decoration: underline;
+	}
+
+
+	/* FOTO */
+
+	.about-image {
+
+		width: 100%;
+	}
+
+
+	.image-placeholder {
+
+		width: 100%;
+
+		aspect-ratio: 3 / 2;
+
+		display: flex;
+
+		align-items: center;
+
+		justify-content: center;
+
+		background:
+			rgba(10, 10, 10, 0.7);
+
+		border:
+			1px solid
+			rgba(255, 255, 255, 0.2);
+
+		color: #777;
+
+		font-size: 0.7rem;
+
+		letter-spacing: 0.1em;
+	}
+
+
+	/* MOBILE */
+
+	@media (max-width: 700px) {
+
+		.about-page {
+
+			padding:
+				40px 20px 80px;
+		}
+
+
+		.page-header {
+
+			margin-bottom: 40px;
+		}
+
+
+		.about-content {
+
+			grid-template-columns: 1fr;
+
+			gap: 40px;
+		}
+
+
+		.about-image {
+
+			max-width: 500px;
+		}
+
+	}
+
+</style>

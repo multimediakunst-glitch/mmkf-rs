@@ -1,0 +1,7 @@
+{
+  "name": "mmkf-rs",
+  "compatibility_date": "2026-08-19",
+  "assets": {
+    "directory": "./dist"
+  }
+}

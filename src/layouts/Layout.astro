@@ -141,8 +141,11 @@ const { title = "MMKF-RS" } = Astro.props;
 
 	html,
 	body {
+
 		margin: 0;
+
 		width: 100%;
+
 		min-height: 100%;
 
 		background: transparent;
@@ -150,6 +153,7 @@ const { title = "MMKF-RS" } = Astro.props;
 
 
 	body {
+
 		position: relative;
 
 		color: #fff;
@@ -204,7 +208,8 @@ const { title = "MMKF-RS" } = Astro.props;
 
 		z-index: 1;
 
-		background: rgba(0, 0, 0, 0.48);
+		background:
+			rgba(0, 0, 0, 0.48);
 
 		pointer-events: none;
 	}
@@ -286,6 +291,18 @@ const { title = "MMKF-RS" } = Astro.props;
 
 		min-height:
 			calc(100vh - 150px);
+	}
+
+
+	/*
+	   WENN EINE LIGHTBOX GEÖFFNET IST,
+	   MUSS DER GESAMTE HAUPTINHALT
+	   ÜBER DEM HEADER LIEGEN.
+	*/
+
+	:global(body.lightbox-open) .site-main {
+
+		z-index: 20;
 	}
 
 

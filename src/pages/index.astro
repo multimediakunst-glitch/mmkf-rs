@@ -1,76 +1,183 @@
 ---
-import { getCollection } from "astro:content";
-import { getImage } from "astro:assets";
 import Layout from "../layouts/Layout.astro";
 import { getGalleries } from "../lib/gallery";
 
 const galleries = getGalleries();
 
-const galleryCards = await Promise.all(
-	galleries.map(async (gallery) => ({
-		name: gallery.name,
-		preview:
-			gallery.images.length > 0
-				? await getImage({
-						src: gallery.images[0].src,
-						width: 1000,
-						format: "webp",
-						quality: 80
-					})
-				: null
-	}))
+const blogPosts = import.meta.glob<string>(
+	"/src/content/blog/*.md",
+	{
+		eager: true,
+		query: "?raw",
+		import: "default"
+	}
 );
 
-const posts = (await getCollection("blog")).sort(
-	(a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+const blogImages = import.meta.glob<string>(
+	"/src/content/blog/*.{jpg,JPG,jpeg,JPEG,png,PNG,webp,WEBP}",
+	{
+		eager: true,
+		query: "?url",
+		import: "default"
+	}
 );
 
-const latestPost = posts[0];
+
+function getFrontmatter(text: string, key: string) {
+
+	const match = text.match(
+		new RegExp(`^${key}:\\s*["']?(.+?)["']?\\s*$`, "m")
+	);
+
+	return match ? match[1].trim() : "";
+}
+
+
+function getBlogPost(entry: [string, string]) {
+
+	const [filePath, content] = entry;
+
+	const fileName = filePath.split("/").pop() ?? "";
+
+	const slug = fileName
+		.replace(/\.md$/i, "")
+		.toLowerCase();
+
+
+	const title =
+		getFrontmatter(content, "title") ||
+		slug;
+
+
+	const date =
+		getFrontmatter(content, "date") ||
+		"";
+
+
+	const body = content
+		.replace(/^---[\s\S]*?---/, "")
+		.trim();
+
+
+	const imageMatch = body.match(
+		/!\[[^\]]*\]\(([^)]+)\)/
+	);
+
+
+	let image = null;
+
+
+	if (imageMatch) {
+
+		const imagePath = imageMatch[1]
+			.replace(/^\.\//, "");
+
+
+		const imageEntry = Object.entries(blogImages).find(
+			([path]) =>
+				path.endsWith("/" + imagePath)
+		);
+
+
+		if (imageEntry) {
+
+			image = imageEntry[1];
+
+		}
+
+	}
+
+
+	const teaser = body
+
+		.replace(
+			/!\[[^\]]*\]\([^)]+\)/g,
+			""
+		)
+
+		.replace(
+			/^#+\s+/gm,
+			""
+		)
+
+		.replace(
+			/\*\*([^*]+)\*\*/g,
+			"$1"
+		)
+
+		.replace(
+			/\*([^*]+)\*/g,
+			"$1"
+		)
+
+		.replace(
+			/`([^`]+)`/g,
+			"$1"
+		)
+
+		.replace(
+			/\[([^\]]+)\]\([^)]+\)/g,
+			"$1"
+		)
+
+		.replace(
+			/\s+/g,
+			" "
+		)
+
+		.trim()
+
+		.slice(0, 180);
+
+
+	return {
+		slug,
+		title,
+		date,
+		image,
+		teaser
+	};
+
+}
+
+
+const posts = Object.entries(blogPosts)
+
+	.map(getBlogPost)
+
+	.sort(
+		(a, b) =>
+			b.date.localeCompare(a.date)
+	)
+
+	.slice(0, 3);
+
 ---
 
 <Layout title="MMKF-RS">
 
-	<section class="section">
-
-		<div class="section-header">
-			<h2>GALERIEN</h2>
-
-			<a href="/galerien">
-				ALLE ANSEHEN →
-			</a>
-		</div>
-
+	<section class="gallery-section">
 
 		<div class="gallery-grid">
 
-			{galleryCards.map((gallery) => (
+			{galleries.map((gallery) => (
 
 				<a
 					href={`/galerien/${encodeURIComponent(gallery.name)}`}
 					class="gallery-card"
 				>
 
-					{gallery.preview && (
-						<div class="gallery-preview">
+					{gallery.images.length > 0 && (
 
-							<img
-								src={gallery.preview.src}
-								width={gallery.preview.width}
-								height={gallery.preview.height}
-								alt={gallery.name}
-								loading="lazy"
-							/>
+						<img
+							src={gallery.images[0].src.src}
+							width={gallery.images[0].src.width}
+							height={gallery.images[0].src.height}
+							alt={gallery.name}
+							loading="lazy"
+						/>
 
-						</div>
 					)}
-
-					<div class="gallery-title">
-
-						<span>{gallery.name}</span>
-
-						<span>→</span>
-
-					</div>
 
 				</a>
 
@@ -78,53 +185,77 @@ const latestPost = posts[0];
 
 		</div>
 
-	</section>
 
+		<div class="gallery-warning">
 
-	<section class="section blog">
+			<div class="warning-title">
+				WARNING
+			</div>
 
-		<div class="section-header">
-
-			<h2>BLOG</h2>
-
-			<a href="/blog">
-				ALLE BEITRÄGE →
-			</a>
+			<div class="warning-text">
+				CLICKING THESE IMAGES MAY RESULT IN
+				AN UNEXPECTED AMOUNT OF PHOTOGRAPHS.
+			</div>
 
 		</div>
 
+	</section>
 
-		{latestPost && (
+
+	<section class="blog-section">
+
+		{posts.map((post) => (
 
 			<a
-				href={`/blog/${latestPost.id}`}
-				class="latest-post"
+				href={`/blog/${post.slug}`}
+				class="blog-card"
 			>
 
-				<p class="date">
-					{latestPost.data.date.toLocaleDateString("de-AT", {
-						month: "long",
-						year: "numeric"
-					}).toUpperCase()}
-				</p>
+				<div class="blog-image">
 
-				<h3>
-					{latestPost.data.title}
-				</h3>
+					{post.image ? (
 
-				{latestPost.data.description && (
-					<p class="description">
-						{latestPost.data.description}
+						<img
+							src={post.image}
+							alt={post.title}
+							loading="lazy"
+						/>
+
+					) : (
+
+						<div class="blog-placeholder">
+							MMKF-RS
+						</div>
+
+					)}
+
+				</div>
+
+
+				<div class="blog-content">
+
+					<h2>
+						{post.title}
+					</h2>
+
+
+					<p>
+						{post.teaser}
+						{post.teaser.length >= 180
+							? "..."
+							: ""}
 					</p>
-				)}
 
-				<span class="post-arrow">
-					BEITRAG ANSEHEN →
-				</span>
+
+					<span class="blog-link">
+						BEITRAG ANSEHEN →
+					</span>
+
+				</div>
 
 			</a>
 
-		)}
+		))}
 
 	</section>
 
@@ -133,54 +264,15 @@ const latestPost = posts[0];
 
 <style>
 
-	/* SECTIONS */
+	.gallery-section {
 
-	.section {
-		padding: 80px 40px 20px;
+		padding:
+			20px 40px 40px;
 	}
 
-
-	.section-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-
-		margin-bottom: 30px;
-		padding-bottom: 15px;
-
-		border-bottom:
-			1px solid
-			rgba(255, 255, 255, 0.35);
-	}
-
-
-	h2 {
-		margin: 0;
-
-		font-size: 1rem;
-		font-weight: 400;
-
-		letter-spacing: 0.1em;
-	}
-
-
-	a {
-		color: #fff;
-		text-decoration: none;
-
-		font-size: 0.7rem;
-		letter-spacing: 0.08em;
-	}
-
-
-	a:hover {
-		text-decoration: underline;
-	}
-
-
-	/* GALERIEN */
 
 	.gallery-grid {
+
 		display: grid;
 
 		grid-template-columns:
@@ -196,163 +288,331 @@ const latestPost = posts[0];
 
 
 	.gallery-card {
+
 		display: block;
 
-		color: #fff;
-
-		background:
-			rgba(10, 10, 10, 0.72);
+		overflow: hidden;
 
 		text-decoration: none;
-
-		overflow: hidden;
-
-		backdrop-filter: blur(2px);
 	}
 
 
-	.gallery-preview {
-		width: 100%;
+	.gallery-card img {
 
-		aspect-ratio: 3 / 2;
-
-		overflow: hidden;
-	}
-
-
-	.gallery-preview img {
 		display: block;
 
 		width: 100%;
-		height: 100%;
 
-		object-fit: cover;
+		height: auto;
 
 		transition:
-			transform 0.3s ease,
-			opacity 0.3s ease;
+			opacity 0.2s ease;
 	}
 
 
-	.gallery-card:hover .gallery-preview img {
-		transform: scale(1.03);
-		opacity: 0.9;
+	.gallery-card:hover img {
+
+		opacity: 0.85;
 	}
 
 
-	.gallery-title {
+	/* WARNING */
+
+	.gallery-warning {
+
+		position: relative;
+
 		display: flex;
 
-		justify-content: space-between;
 		align-items: center;
 
-		padding: 14px 12px;
+		gap: 35px;
 
-		border-top:
-			1px solid
-			rgba(255, 255, 255, 0.2);
+		max-width: 1100px;
+
+		margin:
+			25px auto 0;
+
+		padding:
+			18px 24px;
+
+		background: #fff;
+
+		color: #000;
+
+		border:
+			2px solid #000;
+
+		font-family:
+			"IBM Plex Mono",
+			monospace;
+
+		text-transform: uppercase;
+	}
+
+
+	.gallery-warning::after {
+
+		content: "";
+
+		position: absolute;
+
+		inset: 5px;
+
+		border:
+			2px solid #000;
+
+		pointer-events: none;
+	}
+
+
+	.warning-title {
+
+		font-size: 1.4rem;
+
+		font-weight: 700;
+
+		letter-spacing: 0.08em;
+
+		white-space: nowrap;
+	}
+
+
+	.warning-text {
 
 		font-size: 0.75rem;
 
-		letter-spacing: 0.08em;
-	}
+		line-height: 1.6;
 
-
-	.gallery-title span:last-child {
-		font-size: 1rem;
+		letter-spacing: 0.05em;
 	}
 
 
 	/* BLOG */
 
-	.blog {
-		padding-bottom: 100px;
+	.blog-section {
+
+		max-width: 1000px;
+
+		margin:
+			0px auto 70px;
+
+		padding:
+			0 40px;
 	}
 
 
-	.latest-post {
+	.blog-card {
+
+		display: grid;
+
+		grid-template-columns:
+			240px 1fr;
+
+		gap: 25px;
+
+		margin-bottom: 30px;
+
+		color: inherit;
+
+		text-decoration: none;
+	}
+
+
+	.blog-image {
+
+		width: 240px;
+
+		height: 150px;
+
+		overflow: hidden;
+	}
+
+
+	.blog-image img {
+
 		display: block;
 
-		max-width: 700px;
+		width: 100%;
 
-		padding: 25px;
+		height: 100%;
+
+		object-fit: cover;
+	}
+
+
+	.blog-placeholder {
+
+		display: flex;
+
+		align-items: center;
+
+		justify-content: center;
+
+		width: 100%;
+
+		height: 100%;
+
+		background: #111;
 
 		color: #fff;
 
-		background:
-			rgba(10, 10, 10, 0.72);
+		font-family:
+			"IBM Plex Mono",
+			monospace;
 
-		backdrop-filter: blur(2px);
+		font-size: 0.65rem;
 
-		text-decoration: none;
-
-		transition:
-			background 0.2s ease,
-			transform 0.2s ease;
+		letter-spacing: 0.1em;
 	}
 
 
-	.latest-post:hover {
-		background:
-			rgba(10, 10, 10, 0.85);
+	.blog-content {
 
-		transform: translateY(-2px);
+		display: flex;
+
+		flex-direction: column;
+
+		justify-content: center;
 	}
 
 
-	.date {
-		margin: 0 0 12px;
+	.blog-content h2 {
 
-		color: #aaa;
+		margin:
+			0 0 8px;
 
-		font-size: 0.7rem;
-
-		letter-spacing: 0.08em;
-	}
-
-
-	h3 {
-		margin: 0 0 20px;
-
-		font-size:
-			clamp(1.5rem, 3vw, 2.5rem);
+		font-size: 1rem;
 
 		font-weight: 400;
+
+		color: #fff;
 	}
 
 
-	.description {
-		margin: 0 0 25px;
+	.blog-content p {
 
-		color: #ccc;
+		margin:
+			0 0 12px;
 
-		line-height: 1.7;
+		max-width: 600px;
+
+		font-size: 0.75rem;
+
+		line-height: 1.6;
+
+		color: #888;
 	}
 
 
-	.post-arrow {
-		font-size: 0.7rem;
+	.blog-link {
+
+		font-family:
+			"IBM Plex Mono",
+			monospace;
+
+		font-size: 0.65rem;
 
 		letter-spacing: 0.08em;
+
+		color: #fff;
 	}
 
 
-	/* MOBILE */
+	.blog-card:hover .blog-image img {
+
+		opacity: 0.85;
+	}
+
+
+	.blog-card:hover .blog-link {
+
+		text-decoration: underline;
+	}
+
 
 	@media (max-width: 700px) {
 
-		.section {
+		.gallery-section {
+
 			padding-left: 20px;
+
 			padding-right: 20px;
 		}
 
 
 		.gallery-grid {
+
 			grid-template-columns:
 				repeat(
 					auto-fit,
 					minmax(150px, 1fr)
 				);
+		}
+
+
+		.gallery-warning {
+
+			gap: 18px;
+
+			margin-top: 20px;
+
+			padding:
+				14px 16px;
+		}
+
+
+		.warning-title {
+
+			font-size: 1rem;
+		}
+
+
+		.warning-text {
+
+			font-size: 0.65rem;
+		}
+
+
+		.blog-section {
+
+			margin-top: 40px;
+
+			padding:
+				0 20px;
+		}
+
+
+		.blog-card {
+
+			grid-template-columns: 1fr;
+
+			gap: 12px;
+
+			margin-bottom: 35px;
+		}
+
+
+		.blog-image {
+
+			width: 100%;
+
+			height: auto;
+
+			aspect-ratio:
+				3 / 2;
+		}
+
+
+		.blog-content h2 {
+
+			font-size: 1rem;
+		}
+
+
+		.blog-content p {
+
+			font-size: 0.7rem;
 		}
 
 	}

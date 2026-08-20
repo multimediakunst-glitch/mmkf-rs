@@ -3,20 +3,55 @@ import { getCollection, render } from "astro:content";
 import Layout from "../../layouts/Layout.astro";
 
 export async function getStaticPaths() {
+
 	const posts = await getCollection("blog");
 
-	return posts.map((post) => ({
-		params: {
-			slug: post.id
-		},
-		props: {
-			post
-		}
-	}));
+	const sortedPosts = posts.sort(
+		(a, b) =>
+			b.data.date.valueOf() -
+			a.data.date.valueOf()
+	);
+
+
+	return sortedPosts.map((post, index) => {
+
+		const previousPost =
+			index > 0
+				? sortedPosts[index - 1]
+				: null;
+
+
+		const nextPost =
+			index < sortedPosts.length - 1
+				? sortedPosts[index + 1]
+				: null;
+
+
+		return {
+			params: {
+				slug: post.id
+			},
+
+			props: {
+				post,
+				previousPost,
+				nextPost
+			}
+		};
+
+	});
 }
 
-const { post } = Astro.props;
+
+const {
+	post,
+	previousPost,
+	nextPost
+} = Astro.props;
+
+
 const { Content } = await render(post);
+
 ---
 
 <Layout title={`${post.data.title} – MMKF-RS`}>
@@ -29,11 +64,11 @@ const { Content } = await render(post);
 				← BLOG
 			</a>
 
-			<p class="date">
-				{post.data.date.toLocaleDateString("de-AT")}
-			</p>
 
-			<h1>{post.data.title}</h1>
+			<h1>
+				{post.data.title}
+			</h1>
+
 
 			{post.data.description && (
 				<p class="description">
@@ -53,9 +88,40 @@ const { Content } = await render(post);
 
 		<footer class="post-footer">
 
-			<a href="/blog">
-				← ZURÜCK ZUM BLOG
-			</a>
+			{previousPost && (
+				<a
+					href={`/blog/${previousPost.id}`}
+					class="post-navigation previous"
+				>
+
+					<span class="navigation-label">
+						← VORHERIGER BEITRAG
+					</span>
+
+					<span class="navigation-title">
+						{previousPost.data.title}
+					</span>
+
+				</a>
+			)}
+
+
+			{nextPost && (
+				<a
+					href={`/blog/${nextPost.id}`}
+					class="post-navigation next"
+				>
+
+					<span class="navigation-label">
+						NÄCHSTER BEITRAG →
+					</span>
+
+					<span class="navigation-title">
+						{nextPost.data.title}
+					</span>
+
+				</a>
+			)}
 
 		</footer>
 
@@ -64,7 +130,10 @@ const { Content } = await render(post);
 
 	<!-- LIGHTBOX -->
 
-	<div class="lightbox" id="lightbox">
+	<div
+		class="lightbox"
+		id="lightbox"
+	>
 
 		<button
 			class="lightbox-close"
@@ -73,6 +142,7 @@ const { Content } = await render(post);
 		>
 			×
 		</button>
+
 
 		<img
 			class="lightbox-image"
@@ -85,56 +155,95 @@ const { Content } = await render(post);
 
 
 	<script>
+
 		const images =
-			document.querySelectorAll(".post-content img");
+			document.querySelectorAll(
+				".post-content img"
+			);
+
 
 		const lightbox =
-			document.getElementById("lightbox");
+			document.getElementById(
+				"lightbox"
+			);
+
 
 		const lightboxImage =
-			document.getElementById("lightbox-image");
+			document.getElementById(
+				"lightbox-image"
+			);
+
 
 		const closeButton =
-			document.querySelector(".lightbox-close");
+			document.querySelector(
+				".lightbox-close"
+			);
 
 
 		function closeLightbox() {
 
-			lightbox?.classList.remove("open");
+			lightbox?.classList.remove(
+				"open"
+			);
 
-			document.body.classList.remove("lightbox-open");
+			document.body.classList.remove(
+				"lightbox-open"
+			);
+
 
 			if (lightboxImage) {
-				lightboxImage.setAttribute("src", "");
+
+				lightboxImage.setAttribute(
+					"src",
+					""
+				);
+
 			}
+
 		}
 
 
 		images.forEach((image) => {
 
-			image.addEventListener("click", () => {
+			image.addEventListener(
+				"click",
+				() => {
 
-				if (!lightbox || !lightboxImage) {
-					return;
+					if (
+						!lightbox ||
+						!lightboxImage
+					) {
+						return;
+					}
+
+
+					lightboxImage.setAttribute(
+						"src",
+						image.getAttribute(
+							"src"
+						) || ""
+					);
+
+
+					lightboxImage.setAttribute(
+						"alt",
+						image.getAttribute(
+							"alt"
+						) || ""
+					);
+
+
+					lightbox.classList.add(
+						"open"
+					);
+
+
+					document.body.classList.add(
+						"lightbox-open"
+					);
+
 				}
-
-				lightboxImage.setAttribute(
-					"src",
-					image.getAttribute("src") || ""
-				);
-
-				lightboxImage.setAttribute(
-					"alt",
-					image.getAttribute("alt") || ""
-				);
-
-				lightbox.classList.add("open");
-
-				document.body.classList.add(
-					"lightbox-open"
-				);
-
-			});
+			);
 
 		});
 
@@ -149,8 +258,13 @@ const { Content } = await render(post);
 			"click",
 			(event) => {
 
-				if (event.target === lightbox) {
+				if (
+					event.target === lightbox ||
+					event.target === closeButton
+				) {
+
 					closeLightbox();
+
 				}
 
 			}
@@ -161,12 +275,17 @@ const { Content } = await render(post);
 			"keydown",
 			(event) => {
 
-				if (event.key === "Escape") {
+				if (
+					event.key === "Escape"
+				) {
+
 					closeLightbox();
+
 				}
 
 			}
 		);
+
 	</script>
 
 </Layout>
@@ -179,12 +298,15 @@ const { Content } = await render(post);
 	   ======================================== */
 
 	.post-page {
+
 		width: 100%;
+
 		max-width: 1100px;
 
 		margin: 0 auto;
 
-		padding: 70px 40px 120px;
+		padding:
+			45px 40px 80px;
 
 		box-sizing: border-box;
 	}
@@ -195,24 +317,20 @@ const { Content } = await render(post);
 	   ======================================== */
 
 	.post-header {
-		padding-bottom: 35px;
 
-		margin-bottom: 60px;
-
-		border-bottom:
-			1px solid
-			rgba(255, 255, 255, 0.3);
+		margin-bottom: 35px;
 	}
 
 
 	.back {
+
 		display: inline-block;
 
-		margin-bottom: 45px;
+		margin-bottom: 25px;
 
-		color: #aaa;
+		color: #888;
 
-		font-size: 0.7rem;
+		font-size: 0.65rem;
 
 		letter-spacing: 0.08em;
 
@@ -221,45 +339,38 @@ const { Content } = await render(post);
 
 
 	.back:hover {
+
 		color: #fff;
 	}
 
 
-	.date {
-		margin: 0 0 15px;
+	.post-header h1 {
 
-		color: #aaa;
-
-		font-size: 0.7rem;
-
-		letter-spacing: 0.08em;
-	}
-
-
-	h1 {
 		margin: 0;
 
-		font-size:
-			clamp(2rem, 5vw, 4rem);
+		color: #fff;
+
+		font-size: 1.8rem;
 
 		font-weight: 400;
 
-		line-height: 1.15;
+		line-height: 1.3;
 
 		letter-spacing: 0.02em;
 	}
 
 
 	.description {
-		max-width: 750px;
 
-		margin: 25px 0 0;
+		max-width: 700px;
 
-		color: #ccc;
+		margin: 12px 0 0;
 
-		font-size: 1rem;
+		color: #888;
 
-		line-height: 1.7;
+		font-size: 0.75rem;
+
+		line-height: 1.6;
 	}
 
 
@@ -268,17 +379,24 @@ const { Content } = await render(post);
 	   ======================================== */
 
 	.post-content {
+
 		width: 100%;
 
-		max-width: 850px;
+		max-width: 900px;
 
 		margin: 0 auto;
 
-		color: #eee;
+		color: #ddd;
 
-		font-size: 1rem;
+		font-size: 0.8rem;
 
-		line-height: 1.8;
+		line-height: 1.7;
+	}
+
+
+	.post-content :global(> h1:first-child) {
+
+		display: none;
 	}
 
 
@@ -291,37 +409,37 @@ const { Content } = await render(post);
 
 		font-weight: 400;
 
-		line-height: 1.3;
+		line-height: 1.35;
 	}
 
 
 	.post-content :global(h1) {
 
-		margin: 0 0 30px;
+		margin: 0 0 25px;
 
-		font-size: 2.2rem;
+		font-size: 1.5rem;
 	}
 
 
 	.post-content :global(h2) {
 
-		margin: 60px 0 25px;
+		margin: 40px 0 18px;
 
-		font-size: 1.6rem;
+		font-size: 1.2rem;
 	}
 
 
 	.post-content :global(h3) {
 
-		margin: 45px 0 20px;
+		margin: 30px 0 15px;
 
-		font-size: 1.3rem;
+		font-size: 1rem;
 	}
 
 
 	.post-content :global(p) {
 
-		margin: 0 0 25px;
+		margin: 0 0 18px;
 	}
 
 
@@ -338,15 +456,15 @@ const { Content } = await render(post);
 	.post-content :global(ul),
 	.post-content :global(ol) {
 
-		margin: 0 0 30px;
+		margin: 0 0 22px;
 
-		padding-left: 25px;
+		padding-left: 22px;
 	}
 
 
 	.post-content :global(li) {
 
-		margin-bottom: 8px;
+		margin-bottom: 6px;
 	}
 
 
@@ -364,13 +482,14 @@ const { Content } = await render(post);
 
 		height: auto;
 
-		margin: 45px auto;
+		margin: 30px auto;
 
 		object-fit: contain;
 
 		cursor: zoom-in;
 
-		transition: opacity 0.2s ease;
+		transition:
+			opacity 0.2s ease;
 	}
 
 
@@ -382,7 +501,7 @@ const { Content } = await render(post);
 
 	.post-content :global(p:has(> img)) {
 
-		margin: 50px 0;
+		margin: 30px 0;
 	}
 
 
@@ -396,7 +515,7 @@ const { Content } = await render(post);
 
 		width: 100%;
 
-		margin: 55px 0;
+		margin: 35px 0;
 	}
 
 
@@ -408,11 +527,11 @@ const { Content } = await render(post);
 
 	.post-content :global(figcaption) {
 
-		margin-top: 10px;
+		margin-top: 8px;
 
-		color: #999;
+		color: #888;
 
-		font-size: 0.7rem;
+		font-size: 0.65rem;
 
 		line-height: 1.5;
 
@@ -426,15 +545,16 @@ const { Content } = await render(post);
 
 	.post-content :global(blockquote) {
 
-		margin: 40px 0;
+		margin: 30px 0;
 
-		padding: 5px 0 5px 25px;
+		padding:
+			3px 0 3px 20px;
 
 		border-left:
 			2px solid
-			rgba(255, 255, 255, 0.5);
+			rgba(255, 255, 255, 0.4);
 
-		color: #bbb;
+		color: #999;
 
 		font-style: italic;
 	}
@@ -461,9 +581,9 @@ const { Content } = await render(post);
 
 		overflow-x: auto;
 
-		margin: 35px 0;
+		margin: 25px 0;
 
-		padding: 20px;
+		padding: 16px;
 
 		background:
 			rgba(0, 0, 0, 0.7);
@@ -483,38 +603,87 @@ const { Content } = await render(post);
 
 
 	/* ========================================
-	   ARTIKEL FOOTER
+	   ARTIKEL NAVIGATION
 	   ======================================== */
 
 	.post-footer {
 
-		max-width: 850px;
+		display: flex;
 
-		margin: 80px auto 0;
+		justify-content: space-between;
 
-		padding-top: 25px;
+		align-items: flex-start;
+
+		gap: 30px;
+
+		max-width: 900px;
+
+		margin: 55px auto 0;
+
+		padding-top: 20px;
 
 		border-top:
 			1px solid
-			rgba(255, 255, 255, 0.25);
+			rgba(255, 255, 255, 0.2);
 	}
 
 
-	.post-footer a {
+	.post-navigation {
 
-		color: #aaa;
+		display: flex;
 
-		font-size: 0.7rem;
+		flex-direction: column;
 
-		letter-spacing: 0.08em;
+		gap: 6px;
+
+		color: #888;
 
 		text-decoration: none;
 	}
 
 
-	.post-footer a:hover {
+	.post-navigation.next {
+
+		text-align: right;
+
+		align-items: flex-end;
+	}
+
+
+	.post-navigation:hover {
 
 		color: #fff;
+	}
+
+
+	.navigation-label {
+
+		font-family:
+			"IBM Plex Mono",
+			monospace;
+
+		font-size: 0.6rem;
+
+		letter-spacing: 0.08em;
+	}
+
+
+	.navigation-title {
+
+		color: #fff;
+
+		font-size: 0.75rem;
+
+		line-height: 1.5;
+	}
+
+
+	.post-navigation:hover
+	.navigation-title {
+
+		text-decoration: underline;
+
+		text-underline-offset: 3px;
 	}
 
 
@@ -528,7 +697,7 @@ const { Content } = await render(post);
 
 		inset: 0;
 
-		z-index: 1000;
+		z-index: 9999;
 
 		display: flex;
 
@@ -569,13 +738,9 @@ const { Content } = await render(post);
 
 		display: block;
 
-		max-width: 95vw;
+		width: 95vw;
 
-		max-height: 92vh;
-
-		width: auto;
-
-		height: auto;
+		height: 92vh;
 
 		object-fit: contain;
 
@@ -591,7 +756,7 @@ const { Content } = await render(post);
 
 		right: 25px;
 
-		z-index: 1001;
+		z-index: 10000;
 
 		width: 45px;
 
@@ -644,33 +809,87 @@ const { Content } = await render(post);
 		.post-page {
 
 			padding:
-				40px 20px 80px;
+				35px 20px 60px;
 		}
 
 
 		.post-header {
 
-			margin-bottom: 40px;
+			margin-bottom: 30px;
 		}
 
 
 		.back {
 
-			margin-bottom: 30px;
+			margin-bottom: 20px;
+		}
+
+
+		.post-header h1 {
+
+			font-size: 1.4rem;
+
+			line-height: 1.35;
+		}
+
+
+		.description {
+
+			font-size: 0.7rem;
 		}
 
 
 		.post-content {
 
-			font-size: 0.95rem;
+			font-size: 0.75rem;
+
+			line-height: 1.7;
+		}
+
+
+		.post-content :global(h2) {
+
+			margin-top: 30px;
+
+			font-size: 1.05rem;
+		}
+
+
+		.post-content :global(h3) {
+
+			margin-top: 25px;
+
+			font-size: 0.9rem;
 		}
 
 
 		.post-content :global(img) {
 
-			margin-top: 30px;
+			margin-top: 25px;
 
-			margin-bottom: 30px;
+			margin-bottom: 25px;
+		}
+
+
+		/* NAVIGATION */
+
+		.post-footer {
+
+			gap: 15px;
+
+			margin-top: 35px;
+		}
+
+
+		.navigation-label {
+
+			font-size: 0.55rem;
+		}
+
+
+		.navigation-title {
+
+			font-size: 0.7rem;
 		}
 
 
@@ -682,9 +901,9 @@ const { Content } = await render(post);
 
 		.lightbox-image {
 
-			max-width: 100vw;
+			width: 100vw;
 
-			max-height: 90vh;
+			height: 90vh;
 		}
 
 

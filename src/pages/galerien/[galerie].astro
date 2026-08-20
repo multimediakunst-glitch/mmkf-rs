@@ -4,56 +4,78 @@ import Layout from "../../layouts/Layout.astro";
 import { getGalleries } from "../../lib/gallery";
 
 export function getStaticPaths() {
+
 	const galleries = getGalleries();
 
 	return galleries.map((gallery) => ({
+
 		params: {
 			galerie: gallery.name
 		},
+
 		props: {
 			gallery
 		}
+
 	}));
+
 }
+
 
 const { gallery } = Astro.props;
 
+
 const images = await Promise.all(
-	gallery.images.map(async (image) => ({
-		name: image.name,
-		src: await getImage({
-			src: image.src,
-			width: 2400,
-			format: "webp",
-			quality: 85
-		})
-	}))
+
+	gallery.images.map(async (image) => {
+
+		const optimized =
+			image.type === "360"
+				? {
+					src: image.src.src,
+					width: image.src.width,
+					height: image.src.height
+				}
+				: await getImage({
+					src: image.src,
+					width: 2400,
+					format: "webp",
+					quality: 85
+				});
+
+
+		return {
+
+			name: image.name,
+
+			type: image.type,
+
+			src: optimized
+
+		};
+
+	})
+
 );
+
 ---
 
 <Layout title={`${gallery.name} – MMKF-RS`}>
 
 	<section class="gallery-page">
 
-		<header class="page-header">
-
-			<a href="/galerien" class="back">
-				← GALERIEN
-			</a>
-
-			<h1>{gallery.name}</h1>
-
-		</header>
-
-
 		<div class="photo-grid">
 
 			{images.map((image, index) => (
+
 				<figure>
 
 					<button
 						class="photo-button"
 						data-index={index}
+						data-src={image.src.src}
+						data-name={image.name}
+						data-type={image.type}
 						aria-label={`Foto ${index + 1} öffnen`}
 					>
 
@@ -68,12 +90,40 @@ const images = await Promise.all(
 					</button>
 
 				</figure>
+
+			))}
+
+
+			{gallery.gifs.map((gif) => (
+
+				<figure>
+
+					<button
+						class="photo-button gif-button"
+						data-gif-src={gif.src}
+						data-name={gif.name}
+						data-type="gif"
+						aria-label={`${gif.name} öffnen`}
+					>
+
+						<img
+							src={gif.src}
+							alt={gallery.name}
+							loading="lazy"
+						/>
+
+					</button>
+
+				</figure>
+
 			))}
 
 		</div>
 
 	</section>
 
+
+	<!-- NORMALE LIGHTBOX -->
 
 	<div
 		class="lightbox"
@@ -89,6 +139,7 @@ const images = await Promise.all(
 			×
 		</button>
 
+
 		<button
 			class="lightbox-prev"
 			id="lightbox-prev"
@@ -97,9 +148,17 @@ const images = await Promise.all(
 			←
 		</button>
 
+
 		<div class="lightbox-content">
-			<img id="lightbox-image" src="" alt="" />
+
+			<img
+				id="lightbox-image"
+				src=""
+				alt=""
+			/>
+
 		</div>
+
 
 		<button
 			class="lightbox-next"
@@ -111,301 +170,1466 @@ const images = await Promise.all(
 
 	</div>
 
+
+	<!-- 360° VIEWER -->
+
+	<div
+		class="viewer360"
+		id="viewer360"
+		aria-hidden="true"
+	>
+
+		<button
+			class="viewer360-close"
+			id="viewer360-close"
+			aria-label="360° Ansicht schließen"
+		>
+			×
+		</button>
+
+
+		<div
+			class="viewer360-container"
+			id="viewer360-container"
+		></div>
+
+
+		<div class="viewer360-hint">
+			DRAG TO LOOK AROUND
+		</div>
+
+	</div>
+
+
+	<script>
+
+		import * as THREE from "three";
+
+
+		/* ========================================
+		   ELEMENTE
+		   ======================================== */
+
+		const lightbox =
+			document.getElementById(
+				"lightbox"
+			);
+
+
+		const lightboxImage =
+			document.getElementById(
+				"lightbox-image"
+			);
+
+
+		const closeButton =
+			document.getElementById(
+				"lightbox-close"
+			);
+
+
+		const prevButton =
+			document.getElementById(
+				"lightbox-prev"
+			);
+
+
+		const nextButton =
+			document.getElementById(
+				"lightbox-next"
+			);
+
+
+		const viewer360 =
+			document.getElementById(
+				"viewer360"
+			);
+
+
+		const viewer360Close =
+			document.getElementById(
+				"viewer360-close"
+			);
+
+
+		const viewer360Container =
+			document.getElementById(
+				"viewer360-container"
+			);
+
+
+		const photoButtons =
+			document.querySelectorAll(
+				".photo-button"
+			);
+
+
+		let currentIndex = 0;
+
+
+		/* ========================================
+		   360° THREE.JS
+		   ======================================== */
+
+		let renderer = null;
+
+		let scene = null;
+
+		let camera = null;
+
+		let sphere = null;
+
+		let texture = null;
+
+
+		let yaw = 0;
+
+		let pitch = 0;
+
+		let fov = 75;
+
+
+		let dragging = false;
+
+		let pointerX = 0;
+
+		let pointerY = 0;
+
+
+		/* ========================================
+		   TOUCH / PINCH
+		   ======================================== */
+
+		const activePointers =
+			new Map();
+
+
+		let pinchDistance = null;
+
+
+		function getPinchDistance() {
+
+			const pointers =
+				Array.from(
+					activePointers.values()
+				);
+
+
+			if (pointers.length < 2) {
+				return null;
+			}
+
+
+			const dx =
+				pointers[0].x -
+				pointers[1].x;
+
+
+			const dy =
+				pointers[0].y -
+				pointers[1].y;
+
+
+			return Math.sqrt(
+				dx * dx +
+				dy * dy
+			);
+
+		}
+
+
+		function create360Viewer() {
+
+			if (renderer) {
+				return;
+			}
+
+
+			scene =
+				new THREE.Scene();
+
+
+			camera =
+				new THREE.PerspectiveCamera(
+					fov,
+					1,
+					0.1,
+					1000
+				);
+
+
+			camera.position.set(
+				0,
+				0,
+				0
+			);
+
+
+			renderer =
+				new THREE.WebGLRenderer({
+					antialias: true,
+					alpha: false
+				});
+
+
+			renderer.setPixelRatio(
+				Math.min(
+					window.devicePixelRatio,
+					2
+				)
+			);
+
+
+			renderer.setSize(
+				viewer360Container.clientWidth,
+				viewer360Container.clientHeight
+			);
+
+
+			renderer.outputColorSpace =
+				THREE.SRGBColorSpace;
+
+
+			viewer360Container.appendChild(
+				renderer.domElement
+			);
+
+
+			renderer.domElement.style.width =
+				"100%";
+
+
+			renderer.domElement.style.height =
+				"100%";
+
+
+			renderer.domElement.style.display =
+				"block";
+
+
+			animate360();
+
+		}
+
+
+		function animate360() {
+
+			requestAnimationFrame(
+				animate360
+			);
+
+
+			if (!renderer || !camera) {
+				return;
+			}
+
+
+			camera.rotation.order =
+				"YXZ";
+
+
+			camera.rotation.y =
+				yaw;
+
+
+			camera.rotation.x =
+				pitch;
+
+
+			renderer.render(
+				scene,
+				camera
+			);
+
+		}
+
+
+		function resize360() {
+
+			if (
+				!renderer ||
+				!camera
+			) {
+				return;
+			}
+
+
+			const width =
+				viewer360Container.clientWidth;
+
+
+			const height =
+				viewer360Container.clientHeight;
+
+
+			camera.aspect =
+				width / height;
+
+
+			camera.updateProjectionMatrix();
+
+
+			renderer.setSize(
+				width,
+				height
+			);
+
+		}
+
+
+		function load360(src) {
+
+			create360Viewer();
+
+
+			const loader =
+				new THREE.TextureLoader();
+
+
+			loader.load(
+				src,
+				(newTexture) => {
+
+					if (texture) {
+						texture.dispose();
+					}
+
+
+					texture =
+						newTexture;
+
+
+					texture.colorSpace =
+						THREE.SRGBColorSpace;
+
+
+					if (sphere) {
+
+						scene.remove(
+							sphere
+						);
+
+						sphere.geometry.dispose();
+
+						sphere.material.dispose();
+
+					}
+
+
+					const geometry =
+						new THREE.SphereGeometry(
+							100,
+							64,
+							40
+						);
+
+
+					geometry.scale(
+						-1,
+						1,
+						1
+					);
+
+
+					const material =
+						new THREE.MeshBasicMaterial({
+							map: texture
+						});
+
+
+					sphere =
+						new THREE.Mesh(
+							geometry,
+							material
+						);
+
+
+					scene.add(
+						sphere
+					);
+
+
+					yaw = 0;
+
+					pitch = 0;
+
+					fov = 75;
+
+
+					camera.fov =
+						fov;
+
+					camera.updateProjectionMatrix();
+
+
+					resize360();
+
+				}
+			);
+
+		}
+
+
+		function open360(src) {
+
+			lightbox.classList.remove(
+				"open"
+			);
+
+
+			lightbox.setAttribute(
+				"aria-hidden",
+				"true"
+			);
+
+
+			viewer360.classList.add(
+				"open"
+			);
+
+
+			viewer360.setAttribute(
+				"aria-hidden",
+				"false"
+			);
+
+
+			document.body.classList.add(
+				"lightbox-open"
+			);
+
+
+			load360(src);
+
+		}
+
+
+		function close360() {
+
+			viewer360.classList.remove(
+				"open"
+			);
+
+
+			viewer360.setAttribute(
+				"aria-hidden",
+				"true"
+			);
+
+
+			document.body.classList.remove(
+				"lightbox-open"
+			);
+
+
+			activePointers.clear();
+
+			pinchDistance = null;
+
+		}
+
+
+		/* ========================================
+		   BILDER / GIF / 360
+		   ======================================== */
+
+		function showImage(index) {
+
+			if (
+				photoButtons.length === 0
+			) {
+				return;
+			}
+
+
+			currentIndex =
+				(index + photoButtons.length) %
+				photoButtons.length;
+
+
+			const button =
+				photoButtons[currentIndex];
+
+
+			const type =
+				button.dataset.type;
+
+
+			if (type === "360") {
+
+				open360(
+					button.dataset.src || ""
+				);
+
+				return;
+
+			}
+
+
+			close360();
+
+
+			if (type === "gif") {
+
+				lightboxImage.src =
+					button.dataset.gifSrc || "";
+
+			} else {
+
+				lightboxImage.src =
+					button.dataset.src || "";
+
+			}
+
+
+			lightboxImage.alt =
+				button.dataset.name || "";
+
+
+			lightbox.classList.add(
+				"open"
+			);
+
+
+			lightbox.setAttribute(
+				"aria-hidden",
+				"false"
+			);
+
+
+			document.body.classList.add(
+				"lightbox-open"
+			);
+
+		}
+
+
+		function closeLightbox() {
+
+			lightbox.classList.remove(
+				"open"
+			);
+
+
+			lightbox.setAttribute(
+				"aria-hidden",
+				"true"
+			);
+
+
+			document.body.classList.remove(
+				"lightbox-open"
+			);
+
+
+			lightboxImage.src = "";
+
+		}
+
+
+		function previousImage() {
+
+			showImage(
+				currentIndex - 1
+			);
+
+		}
+
+
+		function nextImage() {
+
+			showImage(
+				currentIndex + 1
+			);
+
+		}
+
+
+		/* ========================================
+		   KLICK AUF BILDER
+		   ======================================== */
+
+		photoButtons.forEach(
+			(button) => {
+
+				button.addEventListener(
+					"click",
+					() => {
+
+						const index =
+							Array.from(
+								photoButtons
+							).indexOf(button);
+
+
+						showImage(index);
+
+					}
+				);
+
+			}
+		);
+
+
+		/* ========================================
+		   LIGHTBOX BUTTONS
+		   ======================================== */
+
+		closeButton?.addEventListener(
+			"click",
+			closeLightbox
+		);
+
+
+		prevButton?.addEventListener(
+			"click",
+			previousImage
+		);
+
+
+		nextButton?.addEventListener(
+			"click",
+			nextImage
+		);
+
+
+		/* ========================================
+		   360° CLOSE
+		   ======================================== */
+
+		viewer360Close?.addEventListener(
+			"click",
+			close360
+		);
+
+
+		/* ========================================
+		   360° POINTER
+		   ======================================== */
+
+		viewer360Container?.addEventListener(
+			"pointerdown",
+			(event) => {
+
+				activePointers.set(
+					event.pointerId,
+					{
+						x: event.clientX,
+						y: event.clientY
+					}
+				);
+
+
+				if (
+					activePointers.size === 1
+				) {
+
+					dragging = true;
+
+					pointerX =
+						event.clientX;
+
+					pointerY =
+						event.clientY;
+
+				}
+
+
+				if (
+					activePointers.size === 2
+				) {
+
+					dragging = false;
+
+					pinchDistance =
+						getPinchDistance();
+
+				}
+
+
+				viewer360Container.setPointerCapture(
+					event.pointerId
+				);
+
+			}
+		);
+
+
+		viewer360Container?.addEventListener(
+			"pointermove",
+			(event) => {
+
+				if (
+					!activePointers.has(
+						event.pointerId
+					)
+				) {
+
+					return;
+
+				}
+
+
+				activePointers.set(
+					event.pointerId,
+					{
+						x: event.clientX,
+						y: event.clientY
+					}
+				);
+
+
+				/* ==========================
+				   PINCH ZOOM
+				   ========================== */
+
+				if (
+					activePointers.size === 2
+				) {
+
+					const newDistance =
+						getPinchDistance();
+
+
+					if (
+						pinchDistance !== null &&
+						newDistance !== null
+					) {
+
+						const delta =
+							pinchDistance -
+							newDistance;
+
+
+						fov +=
+							delta * 0.08;
+
+
+						fov =
+							Math.max(
+								35,
+								Math.min(
+									90,
+									fov
+								)
+							);
+
+
+						if (camera) {
+
+							camera.fov =
+								fov;
+
+							camera.updateProjectionMatrix();
+
+						}
+
+					}
+
+
+					pinchDistance =
+						newDistance;
+
+
+					return;
+
+				}
+
+
+				/* ==========================
+				   EIN FINGER
+				   ========================== */
+
+				if (
+					activePointers.size === 1 &&
+					dragging
+				) {
+
+					const dx =
+						event.clientX -
+						pointerX;
+
+
+					const dy =
+						event.clientY -
+						pointerY;
+
+
+					pointerX =
+						event.clientX;
+
+
+					pointerY =
+						event.clientY;
+
+
+					yaw -=
+						dx * 0.005;
+
+
+					pitch -=
+						dy * 0.005;
+
+
+					const limit =
+						Math.PI / 2 -
+						0.05;
+
+
+					pitch =
+						Math.max(
+							-limit,
+							Math.min(
+								limit,
+								pitch
+							)
+						);
+
+				}
+
+			}
+		);
+
+
+		function pointerEnd(event) {
+
+			activePointers.delete(
+				event.pointerId
+			);
+
+
+			if (
+				activePointers.size === 0
+			) {
+
+				dragging = false;
+
+				pinchDistance = null;
+
+				return;
+
+			}
+
+
+			if (
+				activePointers.size === 1
+			) {
+
+				const remaining =
+					Array.from(
+						activePointers.values()
+					)[0];
+
+
+				dragging = true;
+
+				pointerX =
+					remaining.x;
+
+				pointerY =
+					remaining.y;
+
+			}
+
+		}
+
+
+		viewer360Container?.addEventListener(
+			"pointerup",
+			pointerEnd
+		);
+
+
+		viewer360Container?.addEventListener(
+			"pointercancel",
+			pointerEnd
+		);
+
+
+		/* ========================================
+		   DESKTOP MOUSE ZOOM
+		   ======================================== */
+
+		viewer360Container?.addEventListener(
+			"wheel",
+			(event) => {
+
+				event.preventDefault();
+
+
+				fov +=
+					event.deltaY * 0.03;
+
+
+				fov =
+					Math.max(
+						35,
+						Math.min(
+							90,
+							fov
+						)
+					);
+
+
+				if (camera) {
+
+					camera.fov =
+						fov;
+
+					camera.updateProjectionMatrix();
+
+				}
+
+			},
+			{
+				passive: false
+			}
+		);
+
+
+		/* ========================================
+		   ESCAPE
+		   ======================================== */
+
+		document.addEventListener(
+			"keydown",
+			(event) => {
+
+				const lightboxOpen =
+					lightbox?.classList.contains(
+						"open"
+					);
+
+
+				const viewerOpen =
+					viewer360?.classList.contains(
+						"open"
+					);
+
+
+				if (
+					!lightboxOpen &&
+					!viewerOpen
+				) {
+
+					return;
+
+				}
+
+
+				if (
+					event.key === "Escape"
+				) {
+
+					if (viewerOpen) {
+
+						close360();
+
+					} else {
+
+						closeLightbox();
+
+					}
+
+				}
+
+
+				if (
+					event.key === "ArrowLeft"
+				) {
+
+					previousImage();
+
+				}
+
+
+				if (
+					event.key === "ArrowRight"
+				) {
+
+					nextImage();
+
+				}
+
+			}
+		);
+
+
+		/* ========================================
+		   LIGHTBOX AUSSEN KLICK
+		   ======================================== */
+
+		lightbox?.addEventListener(
+			"click",
+			(event) => {
+
+				if (
+					event.target === lightbox
+				) {
+
+					closeLightbox();
+
+				}
+
+			}
+		);
+
+
+		/* ========================================
+		   RESIZE
+		   ======================================== */
+
+		window.addEventListener(
+			"resize",
+			resize360
+		);
+
+	</script>
+
 </Layout>
-
-
-<script define:vars={{
-	images: images.map((image) => ({
-		src: image.src.src,
-		name: image.name
-	}))
-}}>
-	const lightbox = document.getElementById("lightbox");
-	const lightboxImage = document.getElementById("lightbox-image");
-	const closeButton = document.getElementById("lightbox-close");
-	const prevButton = document.getElementById("lightbox-prev");
-	const nextButton = document.getElementById("lightbox-next");
-	const photoButtons = document.querySelectorAll(".photo-button");
-
-	let currentIndex = 0;
-
-	function showImage(index) {
-		currentIndex = (index + images.length) % images.length;
-
-		lightboxImage.src = images[currentIndex].src;
-		lightboxImage.alt = images[currentIndex].name;
-
-		lightbox.classList.add("open");
-		lightbox.setAttribute("aria-hidden", "false");
-
-		document.body.classList.add("lightbox-open");
-	}
-
-	function closeLightbox() {
-		lightbox.classList.remove("open");
-		lightbox.setAttribute("aria-hidden", "true");
-
-		document.body.classList.remove("lightbox-open");
-
-		lightboxImage.src = "";
-	}
-
-	function previousImage() {
-		showImage(currentIndex - 1);
-	}
-
-	function nextImage() {
-		showImage(currentIndex + 1);
-	}
-
-	photoButtons.forEach((button) => {
-		button.addEventListener("click", () => {
-			showImage(Number(button.dataset.index));
-		});
-	});
-
-	closeButton.addEventListener("click", closeLightbox);
-	prevButton.addEventListener("click", previousImage);
-	nextButton.addEventListener("click", nextImage);
-
-	lightbox.addEventListener("click", (event) => {
-		if (event.target === lightbox) {
-			closeLightbox();
-		}
-	});
-
-	document.addEventListener("keydown", (event) => {
-		if (!lightbox.classList.contains("open")) {
-			return;
-		}
-
-		if (event.key === "Escape") {
-			closeLightbox();
-		}
-
-		if (event.key === "ArrowLeft") {
-			previousImage();
-		}
-
-		if (event.key === "ArrowRight") {
-			nextImage();
-		}
-	});
-</script>
 
 
 <style>
 
 	.gallery-page {
-		padding: 60px 40px 100px;
+
+		padding:
+			20px 40px 40px;
 	}
 
-	.page-header {
-		padding-bottom: 25px;
-		border-bottom: 1px solid #333;
-		margin-bottom: 40px;
-	}
-
-	.back {
-		display: inline-block;
-		margin-bottom: 25px;
-		color: #888;
-		font-size: 0.7rem;
-		letter-spacing: 0.08em;
-		text-decoration: none;
-	}
-
-	.back:hover {
-		color: #fff;
-	}
-
-	h1 {
-		margin: 0;
-		font-size: clamp(2rem, 5vw, 4rem);
-		font-weight: 400;
-		letter-spacing: 0.04em;
-	}
-
-
-	/* GALERIE */
 
 	.photo-grid {
-		columns: 3 280px;
-		column-gap: 12px;
+
+		columns:
+			3 280px;
+
+		column-gap:
+			12px;
 	}
+
 
 	.photo-grid figure {
-		margin: 0 0 12px;
-		break-inside: avoid;
+
+		margin:
+			0 0 12px;
+
+		break-inside:
+			avoid;
 	}
 
+
 	.photo-button {
+
 		display: block;
+
 		width: 100%;
+
 		padding: 0;
+
 		margin: 0;
+
 		border: 0;
+
 		outline: 0;
+
 		background: none;
+
 		cursor: zoom-in;
 	}
 
+
 	.photo-button:focus,
 	.photo-button:focus-visible {
+
 		outline: none;
+
 		border: 0;
 	}
 
+
 	.photo-grid img {
+
 		display: block;
+
 		width: 100%;
+
 		height: auto;
 	}
 
+
 	.photo-button:hover img {
+
 		opacity: 0.85;
 	}
 
 
-	/* LIGHTBOX */
+	/* ========================================
+	   NORMALE LIGHTBOX
+	   ======================================== */
 
 	.lightbox {
+
 		position: fixed;
+
 		inset: 0;
+
 		z-index: 1000;
 
 		display: flex;
+
 		align-items: center;
+
 		justify-content: center;
 
 		background: #000;
 
 		opacity: 0;
+
 		visibility: hidden;
+
 		pointer-events: none;
 
-		transition: opacity 0.2s ease;
+		transition:
+			opacity 0.2s ease;
 	}
 
+
 	.lightbox.open {
+
 		opacity: 1;
+
 		visibility: visible;
+
 		pointer-events: auto;
 	}
 
+
 	.lightbox-content {
+
 		width: 100vw;
+
 		height: 100vh;
 
 		display: flex;
+
 		align-items: center;
+
 		justify-content: center;
 
-		padding: 70px 90px;
+		padding:
+			70px 90px;
+
 		box-sizing: border-box;
 	}
 
+
 	.lightbox-content img {
+
 		display: block;
 
 		width: auto;
+
 		height: auto;
 
 		max-width: 100%;
+
 		max-height: 100%;
 
 		object-fit: contain;
 
 		border: 0;
+
 		outline: none;
+
 		box-shadow: none;
 	}
+
 
 	.lightbox-close,
 	.lightbox-prev,
 	.lightbox-next {
+
 		position: fixed;
+
 		z-index: 1001;
 
 		border: 0;
+
 		background: none;
+
 		color: #fff;
 
 		font-family: inherit;
+
 		cursor: pointer;
 
 		opacity: 0.7;
 	}
 
+
 	.lightbox-close:hover,
 	.lightbox-prev:hover,
 	.lightbox-next:hover {
+
 		opacity: 1;
 	}
 
+
 	.lightbox-close {
+
 		top: 25px;
+
 		right: 30px;
 
 		font-size: 2rem;
+
 		font-weight: 300;
 	}
 
+
 	.lightbox-prev,
 	.lightbox-next {
+
 		top: 50%;
-		transform: translateY(-50%);
+
+		transform:
+			translateY(-50%);
 
 		font-size: 2rem;
 	}
 
+
 	.lightbox-prev {
+
 		left: 25px;
 	}
 
+
 	.lightbox-next {
+
 		right: 25px;
 	}
 
+
+	/* ========================================
+	   360° VIEWER
+	   ======================================== */
+
+	.viewer360 {
+
+		position: fixed;
+
+		inset: 0;
+
+		z-index: 1100;
+
+		background: #000;
+
+		opacity: 0;
+
+		visibility: hidden;
+
+		pointer-events: none;
+
+		transition:
+			opacity 0.2s ease;
+	}
+
+
+	.viewer360.open {
+
+		opacity: 1;
+
+		visibility: visible;
+
+		pointer-events: auto;
+	}
+
+
+	.viewer360-container {
+
+		position: absolute;
+
+		inset: 0;
+
+		width: 100%;
+
+		height: 100%;
+
+		cursor: grab;
+
+		touch-action: none;
+
+		user-select: none;
+
+		-webkit-user-select: none;
+	}
+
+
+	.viewer360-container:active {
+
+		cursor: grabbing;
+	}
+
+
+	.viewer360-close {
+
+		position: fixed;
+
+		top: 25px;
+
+		right: 30px;
+
+		z-index: 1102;
+
+		border: 0;
+
+		background: none;
+
+		color: #fff;
+
+		font-family: inherit;
+
+		font-size: 2rem;
+
+		font-weight: 300;
+
+		cursor: pointer;
+
+		opacity: 0.75;
+	}
+
+
+	.viewer360-close:hover {
+
+		opacity: 1;
+	}
+
+
+	.viewer360-hint {
+
+		position: fixed;
+
+		left: 50%;
+
+		bottom: 25px;
+
+		transform:
+			translateX(-50%);
+
+		z-index: 1102;
+
+		padding:
+			8px 12px;
+
+		border:
+			1px solid rgba(
+				255,
+				255,
+				255,
+				0.5
+			);
+
+		background:
+			rgba(
+				0,
+				0,
+				0,
+				0.5
+			);
+
+		color: #fff;
+
+		font-family:
+			"IBM Plex Mono",
+			monospace;
+
+		font-size: 0.6rem;
+
+		letter-spacing: 0.08em;
+
+		pointer-events: none;
+	}
+
+
 	:global(body.lightbox-open) {
+
 		overflow: hidden;
 	}
 
 
-	/* TABLET / MOBILE */
+	/* ========================================
+	   MOBILE
+	   ======================================== */
 
 	@media (max-width: 700px) {
 
 		.gallery-page {
-			padding: 40px 20px 70px;
+
+			padding:
+				20px 20px 40px;
 		}
+
 
 		.photo-grid {
-			columns: 2 160px;
-			column-gap: 8px;
+
+			columns:
+				2 160px;
+
+			column-gap:
+				8px;
 		}
+
 
 		.lightbox-content {
-			padding: 60px 50px;
+
+			padding:
+				60px 50px;
 		}
 
+
 		.lightbox-prev {
+
 			left: 10px;
 		}
 
+
 		.lightbox-next {
+
 			right: 10px;
 		}
+
+
+		.viewer360-close {
+
+			top: 15px;
+
+			right: 20px;
+		}
+
+
+		.viewer360-hint {
+
+			bottom: 18px;
+
+			font-size: 0.55rem;
+		}
+
 	}
+
 
 	@media (max-width: 450px) {
 
 		.photo-grid {
+
 			columns: 1;
 		}
 
+
 		.lightbox-content {
-			padding: 55px 40px;
+
+			padding:
+				55px 40px;
 		}
 
 	}

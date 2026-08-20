@@ -1,76 +1,220 @@
 ---
-import { getCollection } from "astro:content";
 import Layout from "../../layouts/Layout.astro";
 
-const posts = (await getCollection("blog")).sort(
-	(a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+const blogPosts = import.meta.glob<string>(
+	"/src/content/blog/*.md",
+	{
+		eager: true,
+		query: "?raw",
+		import: "default"
+	}
 );
+
+const blogImages = import.meta.glob<string>(
+	"/src/content/blog/*.{jpg,JPG,jpeg,JPEG,png,PNG,webp,WEBP}",
+	{
+		eager: true,
+		query: "?url",
+		import: "default"
+	}
+);
+
+
+function getFrontmatter(text: string, key: string) {
+
+	const match = text.match(
+		new RegExp(`^${key}:\\s*["']?(.+?)["']?\\s*$`, "m")
+	);
+
+	return match ? match[1].trim() : "";
+}
+
+
+function getBlogPost(entry: [string, string]) {
+
+	const [filePath, content] = entry;
+
+	const fileName = filePath.split("/").pop() ?? "";
+
+	/*
+	 * Astro Content Collections verwenden für die ID
+	 * eine Kleinschreibung.
+	 *
+	 * Deshalb muss der Link hier ebenfalls klein
+	 * geschrieben werden.
+	 */
+
+	const slug = fileName
+		.replace(/\.md$/i, "")
+		.toLowerCase();
+
+
+	const title =
+		getFrontmatter(content, "title") ||
+		slug;
+
+
+	const date =
+		getFrontmatter(content, "date") ||
+		"";
+
+
+	const body = content
+		.replace(/^---[\s\S]*?---/, "")
+		.trim();
+
+
+	const imageMatch = body.match(
+		/!\[[^\]]*\]\(([^)]+)\)/
+	);
+
+
+	let image = null;
+
+
+	if (imageMatch) {
+
+		const imagePath = imageMatch[1]
+			.replace(/^\.\//, "");
+
+
+		const imageEntry = Object.entries(
+			blogImages
+		).find(
+			([path]) =>
+				path.endsWith("/" + imagePath)
+		);
+
+
+		if (imageEntry) {
+
+			image = imageEntry[1];
+
+		}
+
+	}
+
+
+	const teaser = body
+
+		.replace(
+			/!\[[^\]]*\]\([^)]+\)/g,
+			""
+		)
+
+		.replace(
+			/^#+\s+/gm,
+			""
+		)
+
+		.replace(
+			/\*\*([^*]+)\*\*/g,
+			"$1"
+		)
+
+		.replace(
+			/\*([^*]+)\*/g,
+			"$1"
+		)
+
+		.replace(
+			/`([^`]+)`/g,
+			"$1"
+		)
+
+		.replace(
+			/\[([^\]]+)\]\([^)]+\)/g,
+			"$1"
+		)
+
+		.replace(
+			/\s+/g,
+			" "
+		)
+
+		.trim()
+
+		.slice(0, 180);
+
+
+	return {
+		slug,
+		title,
+		date,
+		image,
+		teaser
+	};
+
+}
+
+
+const posts = Object.entries(blogPosts)
+
+	.map(getBlogPost)
+
+	.sort(
+		(a, b) =>
+			b.date.localeCompare(a.date)
+	);
+
 ---
 
 <Layout title="Blog – MMKF-RS">
 
-	<section class="blog-page">
+	<section class="blog-section">
 
-		<header class="page-header">
+		{posts.map((post) => (
 
-			<a href="/" class="back">
-				← MMKF-RS
+			<a
+				href={`/blog/${post.slug}`}
+				class="blog-card"
+			>
+
+				<div class="blog-image">
+
+					{post.image ? (
+
+						<img
+							src={post.image}
+							alt={post.title}
+							loading="lazy"
+						/>
+
+					) : (
+
+						<div class="blog-placeholder">
+							MMKF-RS
+						</div>
+
+					)}
+
+				</div>
+
+
+				<div class="blog-content">
+
+					<h2>
+						{post.title}
+					</h2>
+
+
+					<p>
+						{post.teaser}
+						{post.teaser.length >= 180
+							? "..."
+							: ""}
+					</p>
+
+
+					<span class="blog-link">
+						BEITRAG ANSEHEN →
+					</span>
+
+				</div>
+
 			</a>
 
-			<h1>BLOG</h1>
-
-		</header>
-
-
-		<div class="post-list">
-
-			{posts.map((post) => (
-
-				<a
-					href={`/blog/${post.id}`}
-					class="post-card"
-				>
-
-					<div class="post-meta">
-
-						<span>
-							{post.data.date.toLocaleDateString(
-								"de-AT",
-								{
-									day: "2-digit",
-									month: "2-digit",
-									year: "numeric"
-								}
-							)}
-						</span>
-
-					</div>
-
-
-					<div class="post-info">
-
-						<h2>
-							{post.data.title}
-						</h2>
-
-						{post.data.description && (
-							<p>
-								{post.data.description}
-							</p>
-						)}
-
-					</div>
-
-
-					<div class="post-arrow">
-						→
-					</div>
-
-				</a>
-
-			))}
-
-		</div>
+		))}
 
 	</section>
 
@@ -79,221 +223,188 @@ const posts = (await getCollection("blog")).sort(
 
 <style>
 
-	.blog-page {
-		max-width: 1100px;
+	.blog-section {
 
-		margin: 0 auto;
+		max-width: 1000px;
 
-		padding: 70px 40px 120px;
+		margin:
+			25px auto 70px;
 
-		box-sizing: border-box;
+		padding:
+			0 40px;
 	}
 
 
-	/* HEADER */
+	.blog-card {
 
-	.page-header {
-		padding-bottom: 30px;
-
-		margin-bottom: 40px;
-
-		border-bottom:
-			1px solid
-			rgba(255, 255, 255, 0.3);
-	}
-
-
-	.back {
-		display: inline-block;
-
-		margin-bottom: 40px;
-
-		color: #aaa;
-
-		font-size: 0.7rem;
-
-		letter-spacing: 0.08em;
-
-		text-decoration: none;
-	}
-
-
-	.back:hover {
-		color: #fff;
-	}
-
-
-	h1 {
-		margin: 0;
-
-		font-size:
-			clamp(2rem, 5vw, 4rem);
-
-		font-weight: 400;
-
-		letter-spacing: 0.04em;
-	}
-
-
-	/* BEITRÄGE */
-
-	.post-list {
-		display: flex;
-
-		flex-direction: column;
-	}
-
-
-	.post-card {
 		display: grid;
 
 		grid-template-columns:
-			140px 1fr 40px;
+			240px 1fr;
 
-		gap: 30px;
+		gap: 25px;
+
+		margin-bottom: 30px;
+
+		color: #fff;
+
+		text-decoration: none;
+	}
+
+
+	.blog-image {
+
+		width: 240px;
+
+		height: 150px;
+
+		overflow: hidden;
+	}
+
+
+	.blog-image img {
+
+		display: block;
+
+		width: 100%;
+
+		height: 100%;
+
+		object-fit: cover;
+	}
+
+
+	.blog-placeholder {
+
+		display: flex;
 
 		align-items: center;
 
-		padding: 28px 20px;
+		justify-content: center;
 
-		border-bottom:
-			1px solid
-			rgba(255, 255, 255, 0.2);
+		width: 100%;
+
+		height: 100%;
+
+		background: #111;
 
 		color: #fff;
 
-		background:
-			rgba(10, 10, 10, 0.35);
+		font-family:
+			"IBM Plex Mono",
+			monospace;
 
-		text-decoration: none;
-
-		transition:
-			background 0.2s ease,
-			padding 0.2s ease;
-	}
-
-
-	.post-card:hover {
-		background:
-			rgba(10, 10, 10, 0.65);
-
-		padding-left: 25px;
-
-		padding-right: 25px;
-	}
-
-
-	.post-meta {
-		color: #999;
-
-		font-size: 0.7rem;
-
-		letter-spacing: 0.05em;
-	}
-
-
-	.post-info h2 {
-		margin: 0 0 8px;
-
-		font-size: 1.2rem;
-
-		font-weight: 400;
-	}
-
-
-	.post-info p {
-		margin: 0;
-
-		color: #aaa;
-
-		font-size: 0.85rem;
-
-		line-height: 1.6;
-	}
-
-
-	.post-arrow {
-		color: #aaa;
-
-		font-size: 1.2rem;
-
-		text-align: right;
-
-		transition:
-			transform 0.2s ease,
-			color 0.2s ease;
-	}
-
-
-	.post-card:hover .post-arrow {
-		color: #fff;
-
-		transform: translateX(4px);
-	}
-
-
-	/* LEERER BLOG */
-
-	.post-list:empty::after {
-		content: "NOCH KEINE BEITRÄGE";
-
-		padding: 40px 0;
-
-		color: #888;
-
-		font-size: 0.7rem;
+		font-size: 0.65rem;
 
 		letter-spacing: 0.1em;
 	}
 
 
-	/* MOBILE */
+	.blog-content {
+
+		display: flex;
+
+		flex-direction: column;
+
+		justify-content: center;
+	}
+
+
+	.blog-content h2 {
+
+		margin:
+			0 0 8px;
+
+		font-size: 1rem;
+
+		font-weight: 400;
+
+		color: #fff;
+	}
+
+
+	.blog-content p {
+
+		margin:
+			0 0 12px;
+
+		max-width: 600px;
+
+		font-size: 0.75rem;
+
+		line-height: 1.6;
+
+		color: #888;
+	}
+
+
+	.blog-link {
+
+		font-family:
+			"IBM Plex Mono",
+			monospace;
+
+		font-size: 0.65rem;
+
+		letter-spacing: 0.08em;
+
+		color: #fff;
+	}
+
+
+	.blog-card:hover .blog-image img {
+
+		opacity: 0.85;
+	}
+
+
+	.blog-card:hover .blog-link {
+
+		text-decoration: underline;
+	}
+
 
 	@media (max-width: 700px) {
 
-		.blog-page {
-			padding:
-				40px 20px 80px;
+		.blog-section {
+
+			margin-top: 20px;
+
+			padding-left: 20px;
+
+			padding-right: 20px;
 		}
 
 
-		.post-card {
+		.blog-card {
 
-			grid-template-columns:
-				1fr 30px;
+			grid-template-columns: 1fr;
 
-			gap: 15px;
+			gap: 12px;
 
-			padding:
-				22px 10px;
+			margin-bottom: 35px;
 		}
 
 
-		.post-card:hover {
+		.blog-image {
 
-			padding-left: 15px;
+			width: 100%;
 
-			padding-right: 15px;
+			height: auto;
+
+			aspect-ratio: 3 / 2;
 		}
 
 
-		.post-meta {
-
-			grid-column: 1 / -1;
-
-			order: -1;
-		}
-
-
-		.post-info h2 {
+		.blog-content h2 {
 
 			font-size: 1rem;
 		}
 
 
-		.post-info p {
+		.blog-content p {
 
-			font-size: 0.8rem;
+			font-size: 0.7rem;
 		}
 
 	}
